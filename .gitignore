@@ -6,3 +6,4 @@ build
 *.local
 npm-debug.log*
 .DS_Store
+*.tsbuildinfo

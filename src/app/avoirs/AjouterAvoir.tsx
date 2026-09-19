@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ajouterAvoirAction } from "../actions";
 
@@ -16,6 +16,7 @@ export default function AjouterAvoir() {
   const [concerneTgca, setConcerneTgca] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
   const [enCours, startTransition] = useTransition();
+  const fichierRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
   function reinitialiser() {
@@ -26,6 +27,7 @@ export default function AjouterAvoir() {
     setMontantHt("");
     setConcerneTgca(false);
     setErreur(null);
+    if (fichierRef.current) fichierRef.current.value = "";
   }
 
   function soumettre() {
@@ -36,8 +38,18 @@ export default function AjouterAvoir() {
       return;
     }
     setErreur(null);
+    const formData = new FormData();
+    formData.set("date", date);
+    formData.set("destinataire", destinataire);
+    formData.set("objet", objet);
+    formData.set("montantTtc", montantTtc);
+    formData.set("montantHt", montantHt);
+    if (concerneTgca) formData.set("concerneTgca", "on");
+    const fichier = fichierRef.current?.files?.[0];
+    if (fichier) formData.set("fichier", fichier);
+
     startTransition(async () => {
-      const resultat = await ajouterAvoirAction({ date, destinataire, objet, montantTtc: ttc, montantHt: ht, concerneTgca });
+      const resultat = await ajouterAvoirAction(formData);
       if (!resultat.ok) {
         setErreur(resultat.erreur);
         return;
@@ -108,6 +120,15 @@ export default function AjouterAvoir() {
             value={montantHt}
             onChange={(e) => setMontantHt(e.target.value)}
             className="mt-1 w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+          />
+        </label>
+        <label className="text-sm text-slate-700 sm:col-span-2">
+          Pièce jointe (optionnel)
+          <input
+            ref={fichierRef}
+            type="file"
+            accept=".pdf,image/*"
+            className="mt-1 w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-sm"
           />
         </label>
       </div>

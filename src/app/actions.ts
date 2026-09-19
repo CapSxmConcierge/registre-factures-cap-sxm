@@ -9,8 +9,7 @@ import {
   modifierAvoir,
   importerFacturesManuel,
   importerAvoirsManuel,
-  type AjouterFactureManuelParams,
-  type AjouterAvoirManuelParams,
+  enregistrerPieceJointe,
   type ModifierFactureParams,
   type ModifierAvoirParams,
   type ImportResultat,
@@ -32,11 +31,29 @@ export async function deconnexionAction(): Promise<void> {
   redirect("/login");
 }
 
+/** Stocke la pièce jointe éventuelle du formulaire ("fichier") et renvoie son URL servable — undefined si aucun fichier choisi. */
+async function traiterPieceJointeEventuelle(formData: FormData): Promise<string | undefined> {
+  const fichier = formData.get("fichier");
+  if (!(fichier instanceof File) || fichier.size === 0) return undefined;
+  const buffer = Buffer.from(await fichier.arrayBuffer());
+  return enregistrerPieceJointe(fichier.name, fichier.type || "application/octet-stream", buffer);
+}
+
 export async function ajouterFactureAction(
-  params: AjouterFactureManuelParams
+  formData: FormData
 ): Promise<{ ok: true; numero: number } | { ok: false; erreur: string }> {
   try {
-    const ligne = await ajouterFactureManuel(params);
+    const lienFichier = await traiterPieceJointeEventuelle(formData);
+    const ligne = await ajouterFactureManuel({
+      date: String(formData.get("date")),
+      destinataire: String(formData.get("destinataire")),
+      objet: String(formData.get("objet")),
+      montantTtc: Number(formData.get("montantTtc")),
+      montantHt: Number(formData.get("montantHt")),
+      venteMateriel: formData.get("venteMateriel") === "on",
+      concerneTgca: formData.get("concerneTgca") === "on",
+      lienFichier,
+    });
     revalidatePath("/factures");
     revalidatePath("/tgca");
     return { ok: true, numero: ligne.numero };
@@ -47,10 +64,19 @@ export async function ajouterFactureAction(
 }
 
 export async function ajouterAvoirAction(
-  params: AjouterAvoirManuelParams
+  formData: FormData
 ): Promise<{ ok: true; numero: number } | { ok: false; erreur: string }> {
   try {
-    const ligne = await ajouterAvoirManuel(params);
+    const lienFichier = await traiterPieceJointeEventuelle(formData);
+    const ligne = await ajouterAvoirManuel({
+      date: String(formData.get("date")),
+      destinataire: String(formData.get("destinataire")),
+      objet: String(formData.get("objet")),
+      montantTtc: Number(formData.get("montantTtc")),
+      montantHt: Number(formData.get("montantHt")),
+      concerneTgca: formData.get("concerneTgca") === "on",
+      lienFichier,
+    });
     revalidatePath("/avoirs");
     revalidatePath("/tgca");
     return { ok: true, numero: ligne.numero };

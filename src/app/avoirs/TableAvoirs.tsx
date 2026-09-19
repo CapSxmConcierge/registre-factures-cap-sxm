@@ -143,6 +143,7 @@ export default function TableAvoirs({ avoirs }: { avoirs: Avoir[] }) {
               <th className="cursor-pointer select-none px-3 py-2 hover:text-slate-800" onClick={() => trierPar("origine")}>
                 Origine{flecheDe("origine")}
               </th>
+              <th className="px-3 py-2">Fichier</th>
               <th className="px-3 py-2"></th>
             </tr>
           </thead>
@@ -152,7 +153,7 @@ export default function TableAvoirs({ avoirs }: { avoirs: Avoir[] }) {
             ))}
             {filtrees.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-3 py-6 text-center text-slate-400">
+                <td colSpan={9} className="px-3 py-6 text-center text-slate-400">
                   {avoirs.length === 0 ? "Aucun avoir pour cette année." : "Aucun résultat pour ces filtres."}
                 </td>
               </tr>
@@ -166,7 +167,7 @@ export default function TableAvoirs({ avoirs }: { avoirs: Avoir[] }) {
                   {filtrees.length !== avoirs.length ? ` / ${avoirs.length}` : ""})
                 </td>
                 <td className="px-3 py-2 text-right font-mono">{EUR.format(totalTtc)}</td>
-                <td colSpan={2}></td>
+                <td colSpan={3}></td>
               </tr>
             </tfoot>
           )}

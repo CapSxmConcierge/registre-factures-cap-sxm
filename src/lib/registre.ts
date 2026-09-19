@@ -24,6 +24,8 @@ export interface Facture {
   montant_ht: string;
   montant_tgca: string;
   origine: "decompte" | "materiel" | "manuel";
+  /** Chemin local (documents générés par l'Appli Gestion) ou /api/piece-jointe/{id} (pièce jointe manuelle) — voir migration 0049. */
+  lien_fichier: string | null;
   created_at: string;
 }
 
@@ -39,6 +41,7 @@ export interface Avoir {
   montant_ht: string;
   montant_tgca: string;
   origine: "decompte" | "manuel";
+  lien_fichier: string | null;
   created_at: string;
 }
 
@@ -46,7 +49,7 @@ export async function getFactures(annee: number): Promise<Facture[]> {
   const { rows } = await pool.query<Facture>(
     `select id, annee, numero, to_char(date_document, 'YYYY-MM-DD') as date_document,
             vente_materiel, concerne_tgca, destinataire, objet, montant_ttc, montant_ht, montant_tgca,
-            origine, to_char(created_at, 'YYYY-MM-DD"T"HH24:MI:SS') as created_at
+            origine, lien_fichier, to_char(created_at, 'YYYY-MM-DD"T"HH24:MI:SS') as created_at
      from factures where annee = $1 order by numero desc`,
     [annee]
   );
@@ -57,7 +60,7 @@ export async function getAvoirs(annee: number): Promise<Avoir[]> {
   const { rows } = await pool.query<Avoir>(
     `select id, annee, numero, to_char(date_document, 'YYYY-MM-DD') as date_document,
             concerne_tgca, destinataire, objet, montant_ttc, montant_ht, montant_tgca,
-            origine, to_char(created_at, 'YYYY-MM-DD"T"HH24:MI:SS') as created_at
+            origine, lien_fichier, to_char(created_at, 'YYYY-MM-DD"T"HH24:MI:SS') as created_at
      from avoirs where annee = $1 order by numero desc`,
     [annee]
   );
@@ -83,6 +86,8 @@ export interface AjouterFactureManuelParams {
   montantHt: number;
   venteMateriel: boolean;
   concerneTgca: boolean;
+  /** Pièce jointe déjà stockée (voir enregistrerPieceJointe) — /api/piece-jointe/{id}. */
+  lienFichier?: string | null;
 }
 
 export async function ajouterFactureManuel(params: AjouterFactureManuelParams): Promise<Facture> {
@@ -98,7 +103,12 @@ export async function ajouterFactureManuel(params: AjouterFactureManuelParams): 
       params.concerneTgca,
     ]
   );
-  return rows[0];
+  const facture = rows[0];
+  if (params.lienFichier) {
+    await pool.query(`update factures set lien_fichier = $1 where id = $2`, [params.lienFichier, facture.id]);
+    facture.lien_fichier = params.lienFichier;
+  }
+  return facture;
 }
 
 export interface AjouterAvoirManuelParams {
@@ -108,6 +118,7 @@ export interface AjouterAvoirManuelParams {
   montantTtc: number;
   montantHt: number;
   concerneTgca: boolean;
+  lienFichier?: string | null;
 }
 
 export async function ajouterAvoirManuel(params: AjouterAvoirManuelParams): Promise<Avoir> {
@@ -115,7 +126,21 @@ export async function ajouterAvoirManuel(params: AjouterAvoirManuelParams): Prom
     `select * from enregistrer_avoir($1, $2, $3, $4, $5, $6, 'manuel', null, null, null)`,
     [params.date, params.destinataire, params.objet, params.montantTtc, params.montantHt, params.concerneTgca]
   );
-  return rows[0];
+  const avoir = rows[0];
+  if (params.lienFichier) {
+    await pool.query(`update avoirs set lien_fichier = $1 where id = $2`, [params.lienFichier, avoir.id]);
+    avoir.lien_fichier = params.lienFichier;
+  }
+  return avoir;
+}
+
+/** Stocke une pièce jointe (upload manuel depuis le registre) et renvoie son URL servable — voir migration 0049. */
+export async function enregistrerPieceJointe(nomFichier: string, typeMime: string, donnees: Buffer): Promise<string> {
+  const { rows } = await pool.query<{ id: string }>(
+    `insert into pieces_jointes_registre (nom_fichier, type_mime, donnees) values ($1, $2, $3) returning id`,
+    [nomFichier, typeMime, donnees]
+  );
+  return `/api/piece-jointe/${rows[0].id}`;
 }
 
 export interface ModifierFactureParams {
@@ -138,7 +163,7 @@ export async function modifierFacture(params: ModifierFactureParams): Promise<Fa
      where id = $1
      returning id, annee, numero, to_char(date_document, 'YYYY-MM-DD') as date_document,
                vente_materiel, concerne_tgca, destinataire, objet, montant_ttc, montant_ht, montant_tgca,
-               origine, to_char(created_at, 'YYYY-MM-DD"T"HH24:MI:SS') as created_at`,
+               origine, lien_fichier, to_char(created_at, 'YYYY-MM-DD"T"HH24:MI:SS') as created_at`,
     [
       params.id,
       params.date,
@@ -173,7 +198,7 @@ export async function modifierAvoir(params: ModifierAvoirParams): Promise<Avoir>
      where id = $1
      returning id, annee, numero, to_char(date_document, 'YYYY-MM-DD') as date_document,
                concerne_tgca, destinataire, objet, montant_ttc, montant_ht, montant_tgca,
-               origine, to_char(created_at, 'YYYY-MM-DD"T"HH24:MI:SS') as created_at`,
+               origine, lien_fichier, to_char(created_at, 'YYYY-MM-DD"T"HH24:MI:SS') as created_at`,
     [params.id, params.date, params.destinataire, params.objet, params.montantTtc, params.montantHt, montantTgca, params.concerneTgca]
   );
   return rows[0];

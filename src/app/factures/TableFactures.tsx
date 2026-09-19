@@ -162,6 +162,7 @@ export default function TableFactures({ factures }: { factures: Facture[] }) {
               <th className="cursor-pointer select-none px-3 py-2 hover:text-slate-800" onClick={() => trierPar("origine")}>
                 Origine{flecheDe("origine")}
               </th>
+              <th className="px-3 py-2">Fichier</th>
               <th className="px-3 py-2"></th>
             </tr>
           </thead>
@@ -171,7 +172,7 @@ export default function TableFactures({ factures }: { factures: Facture[] }) {
             ))}
             {filtrees.length === 0 && (
               <tr>
-                <td colSpan={9} className="px-3 py-6 text-center text-slate-400">
+                <td colSpan={10} className="px-3 py-6 text-center text-slate-400">
                   {factures.length === 0 ? "Aucune facture pour cette année." : "Aucun résultat pour ces filtres."}
                 </td>
               </tr>
@@ -185,7 +186,7 @@ export default function TableFactures({ factures }: { factures: Facture[] }) {
                   {filtrees.length !== factures.length ? ` / ${factures.length}` : ""})
                 </td>
                 <td className="px-3 py-2 text-right font-mono">{EUR.format(totalTtc)}</td>
-                <td colSpan={2}></td>
+                <td colSpan={3}></td>
               </tr>
             </tfoot>
           )}

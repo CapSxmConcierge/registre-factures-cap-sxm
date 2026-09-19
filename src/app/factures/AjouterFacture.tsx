@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ajouterFactureAction } from "../actions";
 
@@ -17,6 +17,7 @@ export default function AjouterFacture() {
   const [concerneTgca, setConcerneTgca] = useState(true);
   const [erreur, setErreur] = useState<string | null>(null);
   const [enCours, startTransition] = useTransition();
+  const fichierRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
   function reinitialiser() {
@@ -28,6 +29,7 @@ export default function AjouterFacture() {
     setVenteMateriel(false);
     setConcerneTgca(true);
     setErreur(null);
+    if (fichierRef.current) fichierRef.current.value = "";
   }
 
   function soumettre() {
@@ -38,16 +40,19 @@ export default function AjouterFacture() {
       return;
     }
     setErreur(null);
+    const formData = new FormData();
+    formData.set("date", date);
+    formData.set("destinataire", destinataire);
+    formData.set("objet", objet);
+    formData.set("montantTtc", montantTtc);
+    formData.set("montantHt", montantHt);
+    if (venteMateriel) formData.set("venteMateriel", "on");
+    if (concerneTgca) formData.set("concerneTgca", "on");
+    const fichier = fichierRef.current?.files?.[0];
+    if (fichier) formData.set("fichier", fichier);
+
     startTransition(async () => {
-      const resultat = await ajouterFactureAction({
-        date,
-        destinataire,
-        objet,
-        montantTtc: ttc,
-        montantHt: ht,
-        venteMateriel,
-        concerneTgca,
-      });
+      const resultat = await ajouterFactureAction(formData);
       if (!resultat.ok) {
         setErreur(resultat.erreur);
         return;
@@ -118,6 +123,15 @@ export default function AjouterFacture() {
             value={montantHt}
             onChange={(e) => setMontantHt(e.target.value)}
             className="mt-1 w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+          />
+        </label>
+        <label className="text-sm text-slate-700 sm:col-span-2">
+          Pièce jointe (optionnel)
+          <input
+            ref={fichierRef}
+            type="file"
+            accept=".pdf,image/*"
+            className="mt-1 w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-sm"
           />
         </label>
       </div>

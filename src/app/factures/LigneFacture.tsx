@@ -9,6 +9,24 @@ const EUR = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" 
 const OUI_NON = (v: boolean) => (v ? "Oui" : "Non");
 const origineLabel: Record<string, string> = { decompte: "Décompte", materiel: "Matériel", manuel: "Manuel" };
 
+/** Pièce jointe uploadée (servable depuis ce site) vs. simple chemin local (documents générés par l'Appli Gestion, pas cliquable depuis le web). */
+function CelluleFichier({ lien }: { lien: string | null }) {
+  if (!lien) return <span className="text-slate-300">—</span>;
+  if (lien.startsWith("/api/piece-jointe/")) {
+    return (
+      <a href={lien} target="_blank" rel="noopener noreferrer" className="font-semibold text-blue-600 hover:underline">
+        📎 Ouvrir
+      </a>
+    );
+  }
+  const nom = lien.split(/[\\/]/).pop() || lien;
+  return (
+    <span className="text-xs text-slate-400" title={lien}>
+      📁 {nom}
+    </span>
+  );
+}
+
 export default function LigneFacture({ facture }: { facture: Facture }) {
   const [edition, setEdition] = useState(false);
   const [date, setDate] = useState(facture.date_document);
@@ -73,6 +91,9 @@ export default function LigneFacture({ facture }: { facture: Facture }) {
         <td className="px-3 py-2">{facture.objet}</td>
         <td className="px-3 py-2 text-right font-mono">{EUR.format(Number(facture.montant_ttc))}</td>
         <td className="px-3 py-2 text-xs text-slate-400">{origineLabel[facture.origine] ?? facture.origine}</td>
+        <td className="px-3 py-2 text-sm">
+          <CelluleFichier lien={facture.lien_fichier} />
+        </td>
         <td className="px-3 py-2 text-right">
           <button onClick={() => setEdition(true)} className="text-xs font-semibold text-blue-600 hover:text-blue-800">
             Modifier
@@ -136,6 +157,9 @@ export default function LigneFacture({ facture }: { facture: Facture }) {
         </div>
       </td>
       <td className="px-3 py-2 text-xs text-slate-400">{origineLabel[facture.origine] ?? facture.origine}</td>
+      <td className="px-3 py-2 text-sm">
+        <CelluleFichier lien={facture.lien_fichier} />
+      </td>
       <td className="px-3 py-2 whitespace-nowrap text-right">
         {erreur && <p className="mb-1 text-xs text-red-600">{erreur}</p>}
         <button

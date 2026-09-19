@@ -51,8 +51,9 @@ export default function ImporterFactures() {
       <p className="text-sm font-semibold text-slate-800">Importer un historique de factures (.xlsx)</p>
       <p className="mt-1 text-xs text-slate-500">
         Colonnes attendues : Date, N° de la facture, Vente de matériel, Concerné par TGCA, Destinataire, Objet, Montant TTC — mets un
-        « X » dans les cases Vente de matériel / Concerné par TGCA quand c&apos;est le cas, laisse vide sinon. Chaque numéro déjà
-        présent dans le registre sera ignoré (pas de doublon).
+        « X » dans les cases Vente de matériel / Concerné par TGCA quand c&apos;est le cas, laisse vide sinon. Le montant TTC peut
+        rester vide UNIQUEMENT si la ligne n&apos;est pas concernée par la TGCA. Chaque numéro déjà présent dans le registre sera
+        ignoré (pas de doublon).
       </p>
       <a href="/api/modele-factures" className="mt-1 inline-block text-xs font-semibold text-blue-600 hover:underline">
         Télécharger le modèle vide

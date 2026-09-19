@@ -51,8 +51,8 @@ export default function ImporterAvoirs() {
       <p className="text-sm font-semibold text-slate-800">Importer un historique d&apos;avoirs (.xlsx)</p>
       <p className="mt-1 text-xs text-slate-500">
         Colonnes attendues : Date, N° de l&apos;avoir, Concerné par TGCA, Destinataire, Objet, Montant TTC — mets un « X » dans la case
-        Concerné par TGCA quand c&apos;est le cas, laisse vide sinon. Chaque numéro déjà présent dans le registre sera ignoré (pas de
-        doublon).
+        Concerné par TGCA quand c&apos;est le cas, laisse vide sinon. Le montant TTC peut rester vide UNIQUEMENT si la ligne
+        n&apos;est pas concernée par la TGCA. Chaque numéro déjà présent dans le registre sera ignoré (pas de doublon).
       </p>
       <a href="/api/modele-avoirs" className="mt-1 inline-block text-xs font-semibold text-amber-700 hover:underline">
         Télécharger le modèle vide

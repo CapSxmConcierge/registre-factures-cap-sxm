@@ -121,21 +121,37 @@ export async function parserFacturesExcel(buffer: Buffer): Promise<{ lignes: Lig
     const objet = celluleVersTexte(brut("objet"));
     const dateStr = celluleVersDate(brut("date"));
     const numero = celluleVersNombre(brut("n° de la facture"));
-    const montantTtc = celluleVersNombre(brut("montant ttc"));
-    if (!destinataire && !objet && !dateStr && numero === null && montantTtc === null) return; // ligne vide
+    const montantTtcBrut = celluleVersNombre(brut("montant ttc"));
+    const montantTtcTexte = celluleVersTexte(brut("montant ttc"));
+    const venteMateriel = celluleCochee(brut("vente de materiel"));
+    const concerneTgca = celluleCochee(brut("concerne par tgca"));
+    if (!destinataire && !objet && !dateStr && numero === null && montantTtcBrut === null) return; // ligne vide
 
     if (!dateStr) { erreurs.push(`Ligne ${rowNumber} : date invalide ou manquante.`); return; }
     if (numero === null || !Number.isInteger(numero)) { erreurs.push(`Ligne ${rowNumber} : numéro de facture invalide ou manquant.`); return; }
     if (!destinataire) { erreurs.push(`Ligne ${rowNumber} : destinataire manquant.`); return; }
     if (!objet) { erreurs.push(`Ligne ${rowNumber} : objet manquant.`); return; }
-    if (montantTtc === null) { erreurs.push(`Ligne ${rowNumber} : montant TTC invalide ou manquant.`); return; }
+
+    // Montant TTC non renseigné à l'époque pour les lignes hors TGCA (pas
+    // utile alors) — accepté à 0 dans ce cas, sans incidence sur la
+    // déclaration TGCA (getRecapTgcaTrimestre ne somme que les lignes
+    // concerne_tgca). Obligatoire dès que la ligne est concernée par la TGCA.
+    let montantTtc: number;
+    if (montantTtcBrut !== null) {
+      montantTtc = montantTtcBrut;
+    } else if (montantTtcTexte === "" && !concerneTgca) {
+      montantTtc = 0;
+    } else {
+      erreurs.push(`Ligne ${rowNumber} : montant TTC invalide ou manquant (obligatoire pour une ligne concernée par la TGCA).`);
+      return;
+    }
 
     lignes.push({
       ligneExcel: rowNumber,
       date: dateStr,
       numero,
-      venteMateriel: celluleCochee(brut("vente de materiel")),
-      concerneTgca: celluleCochee(brut("concerne par tgca")),
+      venteMateriel,
+      concerneTgca,
       destinataire,
       objet,
       montantTtc,
@@ -168,20 +184,33 @@ export async function parserAvoirsExcel(buffer: Buffer): Promise<{ lignes: Ligne
     const objet = celluleVersTexte(brut("objet"));
     const dateStr = celluleVersDate(brut("date"));
     const numero = celluleVersNombre(brut("n° de l'avoir"));
-    const montantTtc = celluleVersNombre(brut("montant ttc"));
-    if (!destinataire && !objet && !dateStr && numero === null && montantTtc === null) return;
+    const montantTtcBrut = celluleVersNombre(brut("montant ttc"));
+    const montantTtcTexte = celluleVersTexte(brut("montant ttc"));
+    const concerneTgca = celluleCochee(brut("concerne par tgca"));
+    if (!destinataire && !objet && !dateStr && numero === null && montantTtcBrut === null) return;
 
     if (!dateStr) { erreurs.push(`Ligne ${rowNumber} : date invalide ou manquante.`); return; }
     if (numero === null || !Number.isInteger(numero)) { erreurs.push(`Ligne ${rowNumber} : numéro d'avoir invalide ou manquant.`); return; }
     if (!destinataire) { erreurs.push(`Ligne ${rowNumber} : destinataire manquant.`); return; }
     if (!objet) { erreurs.push(`Ligne ${rowNumber} : objet manquant.`); return; }
-    if (montantTtc === null) { erreurs.push(`Ligne ${rowNumber} : montant TTC invalide ou manquant.`); return; }
+
+    // Même tolérance que pour les factures — montant TTC non renseigné à
+    // l'époque pour les lignes hors TGCA, accepté à 0 dans ce cas.
+    let montantTtc: number;
+    if (montantTtcBrut !== null) {
+      montantTtc = montantTtcBrut;
+    } else if (montantTtcTexte === "" && !concerneTgca) {
+      montantTtc = 0;
+    } else {
+      erreurs.push(`Ligne ${rowNumber} : montant TTC invalide ou manquant (obligatoire pour une ligne concernée par la TGCA).`);
+      return;
+    }
 
     lignes.push({
       ligneExcel: rowNumber,
       date: dateStr,
       numero,
-      concerneTgca: celluleCochee(brut("concerne par tgca")),
+      concerneTgca,
       destinataire,
       objet,
       montantTtc,

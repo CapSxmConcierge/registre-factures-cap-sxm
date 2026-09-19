@@ -255,12 +255,13 @@ export function bornesTrimestre(annee: number, trimestre: 1 | 2 | 3 | 4): { debu
 }
 
 export interface RecapTgcaTrimestre {
+  /** Tous les montants de la déclaration sont arrondis à l'euro entier (demande explicite, 19/09/2026). */
   htVente: number;
   htHorsVente: number;
   tgcaFactures: number;
   tgcaAvoirs: number;
   tgcaNette: number;
-  /** (htVente + htHorsVente) * 4% — à comparer visuellement à tgcaNette. */
+  /** (htVente + htHorsVente) * 4%, arrondi — à comparer visuellement à tgcaNette. */
   tgcaCalculee: number;
 }
 
@@ -281,15 +282,20 @@ export async function getRecapTgcaTrimestre(annee: number, trimestre: 1 | 2 | 3 
     [debut, fin]
   );
 
-  const htVente = Number(fRows.find((r) => r.vente_materiel)?.total_ht ?? 0);
   const htHorsVenteFactures = Number(fRows.find((r) => !r.vente_materiel)?.total_ht ?? 0);
-  const tgcaFactures = fRows.reduce((s, r) => s + Number(r.total_tgca), 0);
   const htAvoirs = Number(aRows[0]?.total_ht ?? 0);
-  const tgcaAvoirs = Number(aRows[0]?.total_tgca ?? 0);
+  const tgcaFacturesBrut = fRows.reduce((s, r) => s + Number(r.total_tgca), 0);
 
-  const htHorsVente = Math.round((htHorsVenteFactures - htAvoirs) * 100) / 100;
-  const tgcaNette = Math.round((tgcaFactures - tgcaAvoirs) * 100) / 100;
-  const tgcaCalculee = Math.round((htVente + htHorsVente) * 0.04 * 100) / 100;
+  // Arrondis à l'euro entier — chaque montant de la déclaration doit être un
+  // nombre entier (demande explicite, 19/09/2026), pas seulement le résultat
+  // final : les totaux dérivés (base HT, TGCA nette) restent ainsi cohérents
+  // entre eux puisqu'ils s'obtiennent en additionnant des entiers.
+  const htVente = Math.round(Number(fRows.find((r) => r.vente_materiel)?.total_ht ?? 0));
+  const htHorsVente = Math.round(htHorsVenteFactures - htAvoirs);
+  const tgcaFactures = Math.round(tgcaFacturesBrut);
+  const tgcaAvoirs = Math.round(Number(aRows[0]?.total_tgca ?? 0));
+  const tgcaNette = tgcaFactures - tgcaAvoirs;
+  const tgcaCalculee = Math.round((htVente + htHorsVente) * 0.04);
 
   return { htVente, htHorsVente, tgcaFactures, tgcaAvoirs, tgcaNette, tgcaCalculee };
 }

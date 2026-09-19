@@ -1,6 +1,6 @@
 import { getRecapTgcaTrimestre, getAnneesDisponibles } from "@/lib/registre";
 
-const EUR = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" });
+const EUR = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
 const NOMS_TRIMESTRE: Record<number, string> = {
   1: "T1 (janvier-février-mars)",
   2: "T2 (avril-mai-juin)",
@@ -24,7 +24,7 @@ export default async function TgcaPage({
 
   const [recap, annees] = await Promise.all([getRecapTgcaTrimestre(annee, trimestre), getAnneesDisponibles()]);
 
-  const ecart = Math.round((recap.tgcaNette - recap.tgcaCalculee) * 100) / 100;
+  const ecart = recap.tgcaNette - recap.tgcaCalculee;
 
   return (
     <div>
@@ -92,7 +92,7 @@ export default async function TgcaPage({
             <dt>Contrôle : 4% de la base HT totale</dt>
             <dd className="font-mono">{EUR.format(recap.tgcaCalculee)}</dd>
           </div>
-          {Math.abs(ecart) >= 0.01 && (
+          {ecart !== 0 && (
             <p className="rounded border border-red-300 bg-red-50 px-3 py-2 text-xs font-medium text-red-700">
               ⚠️ Écart de {EUR.format(Math.abs(ecart))} entre la TGCA nette et le contrôle 4% — vérifie les lignes du
               trimestre (export ci-dessous) avant de déclarer.

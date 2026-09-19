@@ -1,9 +1,8 @@
 import Link from "next/link";
 import { getFactures, getAnneesDisponibles } from "@/lib/registre";
 import AjouterFacture from "./AjouterFacture";
-import LigneFacture from "./LigneFacture";
-
-const EUR = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" });
+import ImporterFactures from "./ImporterFactures";
+import TableFactures from "./TableFactures";
 
 export default async function FacturesPage({
   searchParams,
@@ -15,7 +14,6 @@ export default async function FacturesPage({
   const annee = Number(anneeParam) || anneeCourante;
 
   const [factures, annees] = await Promise.all([getFactures(annee), getAnneesDisponibles()]);
-  const totalTtc = factures.reduce((s, f) => s + Number(f.montant_ttc), 0);
 
   return (
     <div>
@@ -34,49 +32,13 @@ export default async function FacturesPage({
         </div>
       </div>
 
-      <div className="mt-4">
+      <div className="mt-4 flex flex-wrap gap-2">
         <AjouterFacture />
+        <ImporterFactures />
       </div>
 
-      <div className="mt-4 overflow-x-auto rounded-lg border border-slate-200">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-slate-200 bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
-              <th className="px-3 py-2">N°</th>
-              <th className="px-3 py-2">Date</th>
-              <th className="px-3 py-2">Vente matériel</th>
-              <th className="px-3 py-2">TGCA</th>
-              <th className="px-3 py-2">Destinataire</th>
-              <th className="px-3 py-2">Objet</th>
-              <th className="px-3 py-2 text-right">Montant TTC</th>
-              <th className="px-3 py-2">Origine</th>
-              <th className="px-3 py-2"></th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {factures.map((f) => (
-              <LigneFacture key={f.id} facture={f} />
-            ))}
-            {factures.length === 0 && (
-              <tr>
-                <td colSpan={9} className="px-3 py-6 text-center text-slate-400">
-                  Aucune facture pour {annee}.
-                </td>
-              </tr>
-            )}
-          </tbody>
-          {factures.length > 0 && (
-            <tfoot>
-              <tr className="border-t border-slate-300 bg-slate-50 font-semibold">
-                <td className="px-3 py-2" colSpan={6}>
-                  Total ({factures.length})
-                </td>
-                <td className="px-3 py-2 text-right font-mono">{EUR.format(totalTtc)}</td>
-                <td colSpan={2}></td>
-              </tr>
-            </tfoot>
-          )}
-        </table>
+      <div className="mt-4">
+        <TableFactures factures={factures} />
       </div>
     </div>
   );

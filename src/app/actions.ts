@@ -7,11 +7,15 @@ import {
   ajouterAvoirManuel,
   modifierFacture,
   modifierAvoir,
+  importerFacturesManuel,
+  importerAvoirsManuel,
   type AjouterFactureManuelParams,
   type AjouterAvoirManuelParams,
   type ModifierFactureParams,
   type ModifierAvoirParams,
+  type ImportResultat,
 } from "@/lib/registre";
+import { parserFacturesExcel, parserAvoirsExcel } from "@/lib/import-excel";
 import { revalidatePath } from "next/cache";
 
 export async function connexionAction(formData: FormData): Promise<{ ok: boolean; erreur?: string }> {
@@ -81,5 +85,49 @@ export async function modifierAvoirAction(
   } catch (err) {
     console.error("Modification d'avoir échouée :", err);
     return { ok: false, erreur: err instanceof Error ? err.message : "Échec inattendu." };
+  }
+}
+
+export async function importerFacturesExcelAction(
+  formData: FormData
+): Promise<{ ok: true; resultat: ImportResultat } | { ok: false; erreur: string }> {
+  const fichier = formData.get("fichier");
+  if (!(fichier instanceof File)) return { ok: false, erreur: "Aucun fichier reçu." };
+  try {
+    const buffer = Buffer.from(await fichier.arrayBuffer());
+    const { lignes, erreurs: erreursParsing } = await parserFacturesExcel(buffer);
+    if (erreursParsing.length > 0 && lignes.length === 0) {
+      return { ok: false, erreur: erreursParsing.join(" ") };
+    }
+    const resultat = await importerFacturesManuel(lignes);
+    for (const e of erreursParsing) resultat.erreurs.push({ ligneExcel: 0, numero: 0, raison: e });
+    revalidatePath("/factures");
+    revalidatePath("/tgca");
+    return { ok: true, resultat };
+  } catch (err) {
+    console.error("Import de factures échoué :", err);
+    return { ok: false, erreur: err instanceof Error ? err.message : "Fichier illisible — vérifie que c'est bien un .xlsx." };
+  }
+}
+
+export async function importerAvoirsExcelAction(
+  formData: FormData
+): Promise<{ ok: true; resultat: ImportResultat } | { ok: false; erreur: string }> {
+  const fichier = formData.get("fichier");
+  if (!(fichier instanceof File)) return { ok: false, erreur: "Aucun fichier reçu." };
+  try {
+    const buffer = Buffer.from(await fichier.arrayBuffer());
+    const { lignes, erreurs: erreursParsing } = await parserAvoirsExcel(buffer);
+    if (erreursParsing.length > 0 && lignes.length === 0) {
+      return { ok: false, erreur: erreursParsing.join(" ") };
+    }
+    const resultat = await importerAvoirsManuel(lignes);
+    for (const e of erreursParsing) resultat.erreurs.push({ ligneExcel: 0, numero: 0, raison: e });
+    revalidatePath("/avoirs");
+    revalidatePath("/tgca");
+    return { ok: true, resultat };
+  } catch (err) {
+    console.error("Import d'avoirs échoué :", err);
+    return { ok: false, erreur: err instanceof Error ? err.message : "Fichier illisible — vérifie que c'est bien un .xlsx." };
   }
 }

@@ -179,6 +179,71 @@ export async function modifierAvoir(params: ModifierAvoirParams): Promise<Avoir>
   return rows[0];
 }
 
+export interface ImportResultat {
+  inserees: number;
+  ignorees: { ligneExcel: number; numero: number; raison: string }[];
+  erreurs: { ligneExcel: number; numero: number; raison: string }[];
+}
+
+/**
+ * Import historique — insère DIRECTEMENT avec le numéro fourni (ne passe
+ * jamais par enregistrer_facture/le compteur, contrairement à une saisie au
+ * clavier) : ces numéros ont déjà été émis avant la mise en service du
+ * registre, ce ne sont jamais de nouveaux numéros à réserver. La montant HT
+ * n'est pas fourni par le tableau Excel (mêmes colonnes que l'affichage,
+ * qui n'en a pas) — calculé à TTC ÷ 1,04, comme pour toute saisie manuelle
+ * hors décompte.
+ */
+export async function importerFacturesManuel(
+  lignes: { ligneExcel: number; date: string; numero: number; venteMateriel: boolean; concerneTgca: boolean; destinataire: string; objet: string; montantTtc: number }[]
+): Promise<ImportResultat> {
+  const resultat: ImportResultat = { inserees: 0, ignorees: [], erreurs: [] };
+  for (const l of lignes) {
+    const annee = Number(l.date.slice(0, 4));
+    const montantHt = Math.round((l.montantTtc / 1.04) * 100) / 100;
+    const montantTgca = Math.round(montantHt * 0.04 * 100) / 100;
+    try {
+      const { rows } = await pool.query(
+        `insert into factures (annee, numero, date_document, vente_materiel, concerne_tgca, destinataire, objet, montant_ttc, montant_ht, montant_tgca, origine)
+         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'manuel')
+         on conflict (annee, numero) do nothing
+         returning id`,
+        [annee, l.numero, l.date, l.venteMateriel, l.concerneTgca, l.destinataire, l.objet, l.montantTtc, montantHt, montantTgca]
+      );
+      if (rows.length > 0) resultat.inserees++;
+      else resultat.ignorees.push({ ligneExcel: l.ligneExcel, numero: l.numero, raison: `Facture n°${l.numero}/${annee} existe déjà.` });
+    } catch (err) {
+      resultat.erreurs.push({ ligneExcel: l.ligneExcel, numero: l.numero, raison: err instanceof Error ? err.message : "Échec inattendu." });
+    }
+  }
+  return resultat;
+}
+
+export async function importerAvoirsManuel(
+  lignes: { ligneExcel: number; date: string; numero: number; concerneTgca: boolean; destinataire: string; objet: string; montantTtc: number }[]
+): Promise<ImportResultat> {
+  const resultat: ImportResultat = { inserees: 0, ignorees: [], erreurs: [] };
+  for (const l of lignes) {
+    const annee = Number(l.date.slice(0, 4));
+    const montantHt = Math.round((l.montantTtc / 1.04) * 100) / 100;
+    const montantTgca = Math.round(montantHt * 0.04 * 100) / 100;
+    try {
+      const { rows } = await pool.query(
+        `insert into avoirs (annee, numero, date_document, concerne_tgca, destinataire, objet, montant_ttc, montant_ht, montant_tgca, origine)
+         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'manuel')
+         on conflict (annee, numero) do nothing
+         returning id`,
+        [annee, l.numero, l.date, l.concerneTgca, l.destinataire, l.objet, l.montantTtc, montantHt, montantTgca]
+      );
+      if (rows.length > 0) resultat.inserees++;
+      else resultat.ignorees.push({ ligneExcel: l.ligneExcel, numero: l.numero, raison: `Avoir n°${l.numero}/${annee} existe déjà.` });
+    } catch (err) {
+      resultat.erreurs.push({ ligneExcel: l.ligneExcel, numero: l.numero, raison: err instanceof Error ? err.message : "Échec inattendu." });
+    }
+  }
+  return resultat;
+}
+
 /** Bornes de dates ('YYYY-MM-DD') d'un trimestre calendaire — T1=janv-mars, T2=avr-juin, T3=juil-sept, T4=oct-déc. */
 export function bornesTrimestre(annee: number, trimestre: 1 | 2 | 3 | 4): { debut: string; fin: string } {
   const moisDebut = (trimestre - 1) * 3 + 1;

@@ -1,9 +1,8 @@
 import Link from "next/link";
 import { getAvoirs, getAnneesDisponibles } from "@/lib/registre";
 import AjouterAvoir from "./AjouterAvoir";
-import LigneAvoir from "./LigneAvoir";
-
-const EUR = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" });
+import ImporterAvoirs from "./ImporterAvoirs";
+import TableAvoirs from "./TableAvoirs";
 
 export default async function AvoirsPage({
   searchParams,
@@ -15,7 +14,6 @@ export default async function AvoirsPage({
   const annee = Number(anneeParam) || anneeCourante;
 
   const [avoirs, annees] = await Promise.all([getAvoirs(annee), getAnneesDisponibles()]);
-  const totalTtc = avoirs.reduce((s, a) => s + Number(a.montant_ttc), 0);
 
   return (
     <div>
@@ -34,48 +32,13 @@ export default async function AvoirsPage({
         </div>
       </div>
 
-      <div className="mt-4">
+      <div className="mt-4 flex flex-wrap gap-2">
         <AjouterAvoir />
+        <ImporterAvoirs />
       </div>
 
-      <div className="mt-4 overflow-x-auto rounded-lg border border-slate-200">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-slate-200 bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
-              <th className="px-3 py-2">N°</th>
-              <th className="px-3 py-2">Date</th>
-              <th className="px-3 py-2">TGCA</th>
-              <th className="px-3 py-2">Destinataire</th>
-              <th className="px-3 py-2">Objet</th>
-              <th className="px-3 py-2 text-right">Montant TTC</th>
-              <th className="px-3 py-2">Origine</th>
-              <th className="px-3 py-2"></th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {avoirs.map((a) => (
-              <LigneAvoir key={a.id} avoir={a} />
-            ))}
-            {avoirs.length === 0 && (
-              <tr>
-                <td colSpan={8} className="px-3 py-6 text-center text-slate-400">
-                  Aucun avoir pour {annee}.
-                </td>
-              </tr>
-            )}
-          </tbody>
-          {avoirs.length > 0 && (
-            <tfoot>
-              <tr className="border-t border-slate-300 bg-slate-50 font-semibold">
-                <td className="px-3 py-2" colSpan={5}>
-                  Total ({avoirs.length})
-                </td>
-                <td className="px-3 py-2 text-right font-mono">{EUR.format(totalTtc)}</td>
-                <td colSpan={2}></td>
-              </tr>
-            </tfoot>
-          )}
-        </table>
+      <div className="mt-4">
+        <TableAvoirs avoirs={avoirs} />
       </div>
     </div>
   );

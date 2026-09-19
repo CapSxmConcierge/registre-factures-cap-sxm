@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { getFactures, getAnneesDisponibles } from "@/lib/registre";
 import AjouterFacture from "./AjouterFacture";
+import LigneFacture from "./LigneFacture";
 
 const EUR = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" });
-const OUI_NON = (v: boolean) => (v ? "Oui" : "Non");
 
 export default async function FacturesPage({
   searchParams,
@@ -16,8 +16,6 @@ export default async function FacturesPage({
 
   const [factures, annees] = await Promise.all([getFactures(annee), getAnneesDisponibles()]);
   const totalTtc = factures.reduce((s, f) => s + Number(f.montant_ttc), 0);
-
-  const origineLabel: Record<string, string> = { decompte: "Décompte", materiel: "Matériel", manuel: "Manuel" };
 
   return (
     <div>
@@ -52,24 +50,16 @@ export default async function FacturesPage({
               <th className="px-3 py-2">Objet</th>
               <th className="px-3 py-2 text-right">Montant TTC</th>
               <th className="px-3 py-2">Origine</th>
+              <th className="px-3 py-2"></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {factures.map((f) => (
-              <tr key={f.id}>
-                <td className="px-3 py-2 font-mono">{f.numero}</td>
-                <td className="px-3 py-2">{f.date_document.split("-").reverse().join("/")}</td>
-                <td className="px-3 py-2">{OUI_NON(f.vente_materiel)}</td>
-                <td className="px-3 py-2">{OUI_NON(f.concerne_tgca)}</td>
-                <td className="px-3 py-2">{f.destinataire}</td>
-                <td className="px-3 py-2">{f.objet}</td>
-                <td className="px-3 py-2 text-right font-mono">{EUR.format(Number(f.montant_ttc))}</td>
-                <td className="px-3 py-2 text-xs text-slate-400">{origineLabel[f.origine] ?? f.origine}</td>
-              </tr>
+              <LigneFacture key={f.id} facture={f} />
             ))}
             {factures.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-3 py-6 text-center text-slate-400">
+                <td colSpan={9} className="px-3 py-6 text-center text-slate-400">
                   Aucune facture pour {annee}.
                 </td>
               </tr>
@@ -82,7 +72,7 @@ export default async function FacturesPage({
                   Total ({factures.length})
                 </td>
                 <td className="px-3 py-2 text-right font-mono">{EUR.format(totalTtc)}</td>
-                <td></td>
+                <td colSpan={2}></td>
               </tr>
             </tfoot>
           )}

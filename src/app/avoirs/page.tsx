@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { getAvoirs, getAnneesDisponibles } from "@/lib/registre";
 import AjouterAvoir from "./AjouterAvoir";
+import LigneAvoir from "./LigneAvoir";
 
 const EUR = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" });
-const OUI_NON = (v: boolean) => (v ? "Oui" : "Non");
 
 export default async function AvoirsPage({
   searchParams,
@@ -16,8 +16,6 @@ export default async function AvoirsPage({
 
   const [avoirs, annees] = await Promise.all([getAvoirs(annee), getAnneesDisponibles()]);
   const totalTtc = avoirs.reduce((s, a) => s + Number(a.montant_ttc), 0);
-
-  const origineLabel: Record<string, string> = { decompte: "Décompte", manuel: "Manuel" };
 
   return (
     <div>
@@ -51,23 +49,16 @@ export default async function AvoirsPage({
               <th className="px-3 py-2">Objet</th>
               <th className="px-3 py-2 text-right">Montant TTC</th>
               <th className="px-3 py-2">Origine</th>
+              <th className="px-3 py-2"></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {avoirs.map((a) => (
-              <tr key={a.id}>
-                <td className="px-3 py-2 font-mono">{a.numero}</td>
-                <td className="px-3 py-2">{a.date_document.split("-").reverse().join("/")}</td>
-                <td className="px-3 py-2">{OUI_NON(a.concerne_tgca)}</td>
-                <td className="px-3 py-2">{a.destinataire}</td>
-                <td className="px-3 py-2">{a.objet}</td>
-                <td className="px-3 py-2 text-right font-mono">{EUR.format(Number(a.montant_ttc))}</td>
-                <td className="px-3 py-2 text-xs text-slate-400">{origineLabel[a.origine] ?? a.origine}</td>
-              </tr>
+              <LigneAvoir key={a.id} avoir={a} />
             ))}
             {avoirs.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-3 py-6 text-center text-slate-400">
+                <td colSpan={8} className="px-3 py-6 text-center text-slate-400">
                   Aucun avoir pour {annee}.
                 </td>
               </tr>
@@ -80,7 +71,7 @@ export default async function AvoirsPage({
                   Total ({avoirs.length})
                 </td>
                 <td className="px-3 py-2 text-right font-mono">{EUR.format(totalTtc)}</td>
-                <td></td>
+                <td colSpan={2}></td>
               </tr>
             </tfoot>
           )}

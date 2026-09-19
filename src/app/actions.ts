@@ -5,8 +5,12 @@ import { motDePasseValide, ouvrirSession, fermerSession } from "@/lib/auth";
 import {
   ajouterFactureManuel,
   ajouterAvoirManuel,
+  modifierFacture,
+  modifierAvoir,
   type AjouterFactureManuelParams,
   type AjouterAvoirManuelParams,
+  type ModifierFactureParams,
+  type ModifierAvoirParams,
 } from "@/lib/registre";
 import { revalidatePath } from "next/cache";
 
@@ -48,6 +52,34 @@ export async function ajouterAvoirAction(
     return { ok: true, numero: ligne.numero };
   } catch (err) {
     console.error("Ajout d'avoir manuel échoué :", err);
+    return { ok: false, erreur: err instanceof Error ? err.message : "Échec inattendu." };
+  }
+}
+
+export async function modifierFactureAction(
+  params: ModifierFactureParams
+): Promise<{ ok: true } | { ok: false; erreur: string }> {
+  try {
+    await modifierFacture(params);
+    revalidatePath("/factures");
+    revalidatePath("/tgca");
+    return { ok: true };
+  } catch (err) {
+    console.error("Modification de facture échouée :", err);
+    return { ok: false, erreur: err instanceof Error ? err.message : "Échec inattendu." };
+  }
+}
+
+export async function modifierAvoirAction(
+  params: ModifierAvoirParams
+): Promise<{ ok: true } | { ok: false; erreur: string }> {
+  try {
+    await modifierAvoir(params);
+    revalidatePath("/avoirs");
+    revalidatePath("/tgca");
+    return { ok: true };
+  } catch (err) {
+    console.error("Modification d'avoir échouée :", err);
     return { ok: false, erreur: err instanceof Error ? err.message : "Échec inattendu." };
   }
 }

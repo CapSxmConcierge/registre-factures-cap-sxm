@@ -118,6 +118,67 @@ export async function ajouterAvoirManuel(params: AjouterAvoirManuelParams): Prom
   return rows[0];
 }
 
+export interface ModifierFactureParams {
+  id: string;
+  date: string;
+  destinataire: string;
+  objet: string;
+  montantTtc: number;
+  montantHt: number;
+  venteMateriel: boolean;
+  concerneTgca: boolean;
+}
+
+/** Corrige les champs d'une facture existante — le numéro et l'année ne sont jamais modifiables ici. */
+export async function modifierFacture(params: ModifierFactureParams): Promise<Facture> {
+  const montantTgca = Math.round(params.montantHt * 0.04 * 100) / 100;
+  const { rows } = await pool.query<Facture>(
+    `update factures set date_document = $2, destinataire = $3, objet = $4, montant_ttc = $5,
+            montant_ht = $6, montant_tgca = $7, vente_materiel = $8, concerne_tgca = $9
+     where id = $1
+     returning id, annee, numero, to_char(date_document, 'YYYY-MM-DD') as date_document,
+               vente_materiel, concerne_tgca, destinataire, objet, montant_ttc, montant_ht, montant_tgca,
+               origine, to_char(created_at, 'YYYY-MM-DD"T"HH24:MI:SS') as created_at`,
+    [
+      params.id,
+      params.date,
+      params.destinataire,
+      params.objet,
+      params.montantTtc,
+      params.montantHt,
+      montantTgca,
+      params.venteMateriel,
+      params.concerneTgca,
+    ]
+  );
+  return rows[0];
+}
+
+export interface ModifierAvoirParams {
+  id: string;
+  date: string;
+  destinataire: string;
+  objet: string;
+  montantTtc: number;
+  montantHt: number;
+  concerneTgca: boolean;
+}
+
+/** Corrige les champs d'un avoir existant — le numéro et l'année ne sont jamais modifiables ici. */
+export async function modifierAvoir(params: ModifierAvoirParams): Promise<Avoir> {
+  const montantTgca = Math.round(params.montantHt * 0.04 * 100) / 100;
+  const { rows } = await pool.query<Avoir>(
+    `update avoirs set date_document = $2, destinataire = $3, objet = $4, montant_ttc = $5,
+            montant_ht = $6, montant_tgca = $7, concerne_tgca = $8
+     where id = $1
+     returning id, annee, numero, to_char(date_document, 'YYYY-MM-DD') as date_document,
+               concerne_tgca, destinataire, objet, montant_ttc, montant_ht, montant_tgca,
+               origine, to_char(created_at, 'YYYY-MM-DD"T"HH24:MI:SS') as created_at`,
+    [params.id, params.date, params.destinataire, params.objet, params.montantTtc, params.montantHt, montantTgca, params.concerneTgca]
+  );
+  return rows[0];
+}
+
 /** Bornes de dates ('YYYY-MM-DD') d'un trimestre calendaire — T1=janv-mars, T2=avr-juin, T3=juil-sept, T4=oct-déc. */
 export function bornesTrimestre(annee: number, trimestre: 1 | 2 | 3 | 4): { debut: string; fin: string } {
   const moisDebut = (trimestre - 1) * 3 + 1;

@@ -69,7 +69,7 @@ export default async function TgcaPage({
             <dd className="font-mono text-slate-800">{EUR.format(recap.htVente)}</dd>
           </div>
           <div className="flex items-center justify-between">
-            <dt className="text-slate-600">HT hors vente (prestations diverses + gestion décompte, net des avoirs)</dt>
+            <dt className="text-slate-600">HT hors vente (prestations diverses + gestion décompte + avoirs)</dt>
             <dd className="font-mono text-slate-800">{EUR.format(recap.htHorsVente)}</dd>
           </div>
           <div className="flex items-center justify-between border-t border-slate-200 pt-2 font-medium">
@@ -81,8 +81,8 @@ export default async function TgcaPage({
             <dd className="font-mono text-slate-800">{EUR.format(recap.tgcaFactures)}</dd>
           </div>
           <div className="flex items-center justify-between">
-            <dt className="text-slate-600">TGCA des avoirs (4%, à déduire)</dt>
-            <dd className="font-mono text-slate-800">− {EUR.format(recap.tgcaAvoirs)}</dd>
+            <dt className="text-slate-600">TGCA des avoirs (4%)</dt>
+            <dd className="font-mono text-slate-800">+ {EUR.format(recap.tgcaAvoirs)}</dd>
           </div>
           <div className="flex items-center justify-between border-t border-slate-200 pt-2 font-semibold">
             <dt className="text-slate-800">TGCA nette à déclarer</dt>

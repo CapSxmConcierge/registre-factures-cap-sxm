@@ -315,11 +315,15 @@ export async function getRecapTgcaTrimestre(annee: number, trimestre: 1 | 2 | 3 
   // nombre entier (demande explicite, 19/09/2026), pas seulement le résultat
   // final : les totaux dérivés (base HT, TGCA nette) restent ainsi cohérents
   // entre eux puisqu'ils s'obtiennent en additionnant des entiers.
+  //
+  // Les avoirs s'ADDITIONNENT (jamais en déduction) — demande explicite,
+  // 20/09/2026 : "il ne doit pas y avoir de nombre négatif même pour les
+  // avoirs. considère que les avoirs sont traités comme les factures."
   const htVente = Math.round(Number(fRows.find((r) => r.vente_materiel)?.total_ht ?? 0));
-  const htHorsVente = Math.round(htHorsVenteFactures - htAvoirs);
+  const htHorsVente = Math.round(htHorsVenteFactures + htAvoirs);
   const tgcaFactures = Math.round(tgcaFacturesBrut);
   const tgcaAvoirs = Math.round(Number(aRows[0]?.total_tgca ?? 0));
-  const tgcaNette = tgcaFactures - tgcaAvoirs;
+  const tgcaNette = tgcaFactures + tgcaAvoirs;
   const tgcaCalculee = Math.round((htVente + htHorsVente) * 0.04);
 
   return { htVente, htHorsVente, tgcaFactures, tgcaAvoirs, tgcaNette, tgcaCalculee };

@@ -39,19 +39,48 @@ async function traiterPieceJointeEventuelle(formData: FormData): Promise<string 
   return enregistrerPieceJointe(fichier.name, fichier.type || "application/octet-stream", buffer);
 }
 
+/**
+ * Le montant TTC/HT est indispensable dès qu'une ligne est concernée par la
+ * TGCA — demande explicite, 20/09/2026 : sans ça, impossible de calculer la
+ * TGCA due. Toléré vide (→ 0) uniquement si la ligne n'est PAS concernée par
+ * la TGCA (même règle que l'import Excel, voir import-excel.ts). Revalidé
+ * ici (pas seulement côté formulaire) : une action serveur ne doit jamais
+ * faire confiance à la seule validation client.
+ */
+function validerMontants(
+  formData: FormData,
+  concerneTgca: boolean
+): { ok: true; montantTtc: number; montantHt: number } | { ok: false; erreur: string } {
+  const montantTtcTexte = String(formData.get("montantTtc") ?? "").trim();
+  const montantHtTexte = String(formData.get("montantHt") ?? "").trim();
+  if (concerneTgca && (montantTtcTexte === "" || montantHtTexte === "")) {
+    return { ok: false, erreur: "Le montant TTC et HT est obligatoire pour une ligne concernée par la TGCA." };
+  }
+  const montantTtc = montantTtcTexte === "" ? 0 : Number(montantTtcTexte);
+  const montantHt = montantHtTexte === "" ? 0 : Number(montantHtTexte);
+  if (!Number.isFinite(montantTtc) || !Number.isFinite(montantHt)) {
+    return { ok: false, erreur: "Montant invalide." };
+  }
+  return { ok: true, montantTtc, montantHt };
+}
+
 export async function ajouterFactureAction(
   formData: FormData
 ): Promise<{ ok: true; numero: number } | { ok: false; erreur: string }> {
   try {
+    const concerneTgca = formData.get("concerneTgca") === "on";
+    const montants = validerMontants(formData, concerneTgca);
+    if (!montants.ok) return montants;
+
     const lienFichier = await traiterPieceJointeEventuelle(formData);
     const ligne = await ajouterFactureManuel({
       date: String(formData.get("date")),
       destinataire: String(formData.get("destinataire")),
       objet: String(formData.get("objet")),
-      montantTtc: Number(formData.get("montantTtc")),
-      montantHt: Number(formData.get("montantHt")),
+      montantTtc: montants.montantTtc,
+      montantHt: montants.montantHt,
       venteMateriel: formData.get("venteMateriel") === "on",
-      concerneTgca: formData.get("concerneTgca") === "on",
+      concerneTgca,
       lienFichier,
     });
     revalidatePath("/factures");
@@ -67,14 +96,18 @@ export async function ajouterAvoirAction(
   formData: FormData
 ): Promise<{ ok: true; numero: number } | { ok: false; erreur: string }> {
   try {
+    const concerneTgca = formData.get("concerneTgca") === "on";
+    const montants = validerMontants(formData, concerneTgca);
+    if (!montants.ok) return montants;
+
     const lienFichier = await traiterPieceJointeEventuelle(formData);
     const ligne = await ajouterAvoirManuel({
       date: String(formData.get("date")),
       destinataire: String(formData.get("destinataire")),
       objet: String(formData.get("objet")),
-      montantTtc: Number(formData.get("montantTtc")),
-      montantHt: Number(formData.get("montantHt")),
-      concerneTgca: formData.get("concerneTgca") === "on",
+      montantTtc: montants.montantTtc,
+      montantHt: montants.montantHt,
+      concerneTgca,
       lienFichier,
     });
     revalidatePath("/avoirs");

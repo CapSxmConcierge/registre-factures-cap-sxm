@@ -31,10 +31,16 @@ export default function AjouterAvoir() {
   }
 
   function soumettre() {
-    const ttc = Number(montantTtc);
-    const ht = Number(montantHt);
-    if (!destinataire || !objet || !Number.isFinite(ttc) || !Number.isFinite(ht)) {
-      setErreur("Renseigne au moins le destinataire, l'objet et les montants.");
+    if (!destinataire || !objet) {
+      setErreur("Renseigne au moins le destinataire et l'objet.");
+      return;
+    }
+    if (concerneTgca && (montantTtc.trim() === "" || montantHt.trim() === "")) {
+      setErreur("Le montant TTC et HT est obligatoire pour une ligne concernée par la TGCA.");
+      return;
+    }
+    if ((montantTtc.trim() !== "" && !Number.isFinite(Number(montantTtc))) || (montantHt.trim() !== "" && !Number.isFinite(Number(montantHt)))) {
+      setErreur("Montant invalide.");
       return;
     }
     setErreur(null);
@@ -103,22 +109,24 @@ export default function AjouterAvoir() {
           />
         </label>
         <label className="text-sm text-slate-700">
-          Montant TTC (€)
+          Montant TTC (€) {concerneTgca && <span className="text-red-500">*</span>}
           <input
             type="number"
             step="0.01"
             value={montantTtc}
             onChange={(e) => setMontantTtc(e.target.value)}
+            placeholder={concerneTgca ? "obligatoire" : "optionnel"}
             className="mt-1 w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
           />
         </label>
         <label className="text-sm text-slate-700">
-          Montant HT (€)
+          Montant HT (€) {concerneTgca && <span className="text-red-500">*</span>}
           <input
             type="number"
             step="0.01"
             value={montantHt}
             onChange={(e) => setMontantHt(e.target.value)}
+            placeholder={concerneTgca ? "obligatoire" : "optionnel"}
             className="mt-1 w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
           />
         </label>

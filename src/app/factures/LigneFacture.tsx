@@ -83,7 +83,7 @@ export default function LigneFacture({ facture }: { facture: Facture }) {
   if (!edition) {
     return (
       <tr>
-        <td className="px-3 py-2 font-mono">{facture.numero}</td>
+        <td className="px-3 py-2 font-mono">{facture.numero}{facture.numero_suffixe}</td>
         <td className="px-3 py-2">{facture.date_document.split("-").reverse().join("/")}</td>
         <td className="px-3 py-2">{OUI_NON(facture.vente_materiel)}</td>
         <td className="px-3 py-2">{OUI_NON(facture.concerne_tgca)}</td>
@@ -105,7 +105,7 @@ export default function LigneFacture({ facture }: { facture: Facture }) {
 
   return (
     <tr className="bg-blue-50/50">
-      <td className="px-3 py-2 font-mono text-slate-400">{facture.numero}</td>
+      <td className="px-3 py-2 font-mono text-slate-400">{facture.numero}{facture.numero_suffixe}</td>
       <td className="px-3 py-2">
         <input
           type="date"

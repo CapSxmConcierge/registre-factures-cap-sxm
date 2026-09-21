@@ -37,7 +37,7 @@ export default function TableAvoirs({ avoirs }: { avoirs: Avoir[] }) {
   const filtrees = useMemo(() => {
     const q = normaliser(recherche.trim());
     let liste = avoirs.filter((a) => {
-      if (q && !(String(a.numero).includes(q) || normaliser(a.destinataire).includes(q) || normaliser(a.objet).includes(q))) return false;
+      if (q && !((a.numero + a.numero_suffixe).includes(q) || normaliser(a.destinataire).includes(q) || normaliser(a.objet).includes(q))) return false;
       if (filtreTgca !== "tous" && a.concerne_tgca !== (filtreTgca === "oui")) return false;
       if (filtreOrigine !== "tous" && a.origine !== filtreOrigine) return false;
       return true;

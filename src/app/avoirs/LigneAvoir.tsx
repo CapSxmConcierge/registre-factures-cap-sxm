@@ -80,7 +80,7 @@ export default function LigneAvoir({ avoir }: { avoir: Avoir }) {
   if (!edition) {
     return (
       <tr>
-        <td className="px-3 py-2 font-mono">{avoir.numero}</td>
+        <td className="px-3 py-2 font-mono">{avoir.numero}{avoir.numero_suffixe}</td>
         <td className="px-3 py-2">{avoir.date_document.split("-").reverse().join("/")}</td>
         <td className="px-3 py-2">{OUI_NON(avoir.concerne_tgca)}</td>
         <td className="px-3 py-2">{avoir.destinataire}</td>
@@ -101,7 +101,7 @@ export default function LigneAvoir({ avoir }: { avoir: Avoir }) {
 
   return (
     <tr className="bg-amber-50/50">
-      <td className="px-3 py-2 font-mono text-slate-400">{avoir.numero}</td>
+      <td className="px-3 py-2 font-mono text-slate-400">{avoir.numero}{avoir.numero_suffixe}</td>
       <td className="px-3 py-2">
         <input
           type="date"

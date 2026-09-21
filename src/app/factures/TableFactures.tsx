@@ -38,7 +38,7 @@ export default function TableFactures({ factures }: { factures: Facture[] }) {
   const filtrees = useMemo(() => {
     const q = normaliser(recherche.trim());
     let liste = factures.filter((f) => {
-      if (q && !(String(f.numero).includes(q) || normaliser(f.destinataire).includes(q) || normaliser(f.objet).includes(q))) return false;
+      if (q && !((f.numero + f.numero_suffixe).includes(q) || normaliser(f.destinataire).includes(q) || normaliser(f.objet).includes(q))) return false;
       if (filtreVenteMateriel !== "tous" && f.vente_materiel !== (filtreVenteMateriel === "oui")) return false;
       if (filtreTgca !== "tous" && f.concerne_tgca !== (filtreTgca === "oui")) return false;
       if (filtreOrigine !== "tous" && f.origine !== filtreOrigine) return false;

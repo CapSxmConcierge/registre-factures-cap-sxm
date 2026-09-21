@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
   const corps = lignes.map((l) =>
     [
       l.type === "facture" ? "Facture" : "Avoir",
-      String(l.numero),
+      `${l.numero}${l.numeroSuffixe}`,
       l.date,
       l.destinataire,
       l.objet,

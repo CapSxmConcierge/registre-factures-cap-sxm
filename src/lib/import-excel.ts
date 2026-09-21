@@ -16,6 +16,8 @@ export interface LigneFactureImport {
   ligneExcel: number;
   date: string;
   numero: number;
+  /** Suffixe optionnel (ex. "b" pour "34b") — facture historique émise en plus d'un numéro déjà attribué, jamais un nouveau numéro séquentiel. Voir migration 0053. */
+  numeroSuffixe: string;
   venteMateriel: boolean;
   concerneTgca: boolean;
   destinataire: string;
@@ -27,6 +29,7 @@ export interface LigneAvoirImport {
   ligneExcel: number;
   date: string;
   numero: number;
+  numeroSuffixe: string;
   concerneTgca: boolean;
   destinataire: string;
   objet: string;
@@ -85,6 +88,21 @@ function celluleCochee(valeur: unknown): boolean {
   return celluleVersTexte(valeur).length > 0;
 }
 
+/**
+ * Numéro de facture/avoir avec suffixe optionnel — demande explicite,
+ * 21/09/2026 : une facture historique numérotée "34b" (émise en plus d'une
+ * facture 34 déjà existante, suite à une erreur, jamais un nouveau numéro
+ * séquentiel) doit pouvoir s'importer pour l'historique, sans casser la
+ * saisie normale (nombre entier pur, le cas de très loin le plus courant).
+ */
+function celluleVersNumeroEtSuffixe(valeur: unknown): { numero: number; suffixe: string } | null {
+  if (typeof valeur === "number" && Number.isInteger(valeur)) return { numero: valeur, suffixe: "" };
+  const texte = celluleVersTexte(valeur);
+  const correspond = texte.match(/^(\d+)\s*([a-zA-Z]?)$/);
+  if (!correspond) return null;
+  return { numero: Number(correspond[1]), suffixe: correspond[2].toLowerCase() };
+}
+
 /** Lit la 1ère feuille d'un classeur, renvoie l'index de colonne (1-based) pour chaque entête attendue. */
 function reperColonnes(sheet: ExcelJS.Worksheet, entetesAttendues: string[]): { index: Record<string, number>; manquantes: string[] } {
   const ligneEntete = sheet.getRow(1);
@@ -120,15 +138,18 @@ export async function parserFacturesExcel(buffer: Buffer): Promise<{ lignes: Lig
     const destinataire = celluleVersTexte(brut("destinataire"));
     const objet = celluleVersTexte(brut("objet"));
     const dateStr = celluleVersDate(brut("date"));
-    const numero = celluleVersNombre(brut("n° de la facture"));
+    const numeroEtSuffixe = celluleVersNumeroEtSuffixe(brut("n° de la facture"));
     const montantTtcBrut = celluleVersNombre(brut("montant ttc"));
     const montantTtcTexte = celluleVersTexte(brut("montant ttc"));
     const venteMateriel = celluleCochee(brut("vente de materiel"));
     const concerneTgca = celluleCochee(brut("concerne par tgca"));
-    if (!destinataire && !objet && !dateStr && numero === null && montantTtcBrut === null) return; // ligne vide
+    if (!destinataire && !objet && !dateStr && numeroEtSuffixe === null && montantTtcBrut === null) return; // ligne vide
 
     if (!dateStr) { erreurs.push(`Ligne ${rowNumber} : date invalide ou manquante.`); return; }
-    if (numero === null || !Number.isInteger(numero)) { erreurs.push(`Ligne ${rowNumber} : numéro de facture invalide ou manquant.`); return; }
+    if (numeroEtSuffixe === null) {
+      erreurs.push(`Ligne ${rowNumber} : numéro de facture invalide ou manquant (nombre entier, ou nombre suivi d'une lettre, ex. "34b").`);
+      return;
+    }
     if (!destinataire) { erreurs.push(`Ligne ${rowNumber} : destinataire manquant.`); return; }
     if (!objet) { erreurs.push(`Ligne ${rowNumber} : objet manquant.`); return; }
 
@@ -149,7 +170,8 @@ export async function parserFacturesExcel(buffer: Buffer): Promise<{ lignes: Lig
     lignes.push({
       ligneExcel: rowNumber,
       date: dateStr,
-      numero,
+      numero: numeroEtSuffixe.numero,
+      numeroSuffixe: numeroEtSuffixe.suffixe,
       venteMateriel,
       concerneTgca,
       destinataire,
@@ -183,14 +205,17 @@ export async function parserAvoirsExcel(buffer: Buffer): Promise<{ lignes: Ligne
     const destinataire = celluleVersTexte(brut("destinataire"));
     const objet = celluleVersTexte(brut("objet"));
     const dateStr = celluleVersDate(brut("date"));
-    const numero = celluleVersNombre(brut("n° de l'avoir"));
+    const numeroEtSuffixe = celluleVersNumeroEtSuffixe(brut("n° de l'avoir"));
     const montantTtcBrut = celluleVersNombre(brut("montant ttc"));
     const montantTtcTexte = celluleVersTexte(brut("montant ttc"));
     const concerneTgca = celluleCochee(brut("concerne par tgca"));
-    if (!destinataire && !objet && !dateStr && numero === null && montantTtcBrut === null) return;
+    if (!destinataire && !objet && !dateStr && numeroEtSuffixe === null && montantTtcBrut === null) return;
 
     if (!dateStr) { erreurs.push(`Ligne ${rowNumber} : date invalide ou manquante.`); return; }
-    if (numero === null || !Number.isInteger(numero)) { erreurs.push(`Ligne ${rowNumber} : numéro d'avoir invalide ou manquant.`); return; }
+    if (numeroEtSuffixe === null) {
+      erreurs.push(`Ligne ${rowNumber} : numéro d'avoir invalide ou manquant (nombre entier, ou nombre suivi d'une lettre, ex. "34b").`);
+      return;
+    }
     if (!destinataire) { erreurs.push(`Ligne ${rowNumber} : destinataire manquant.`); return; }
     if (!objet) { erreurs.push(`Ligne ${rowNumber} : objet manquant.`); return; }
 
@@ -209,7 +234,8 @@ export async function parserAvoirsExcel(buffer: Buffer): Promise<{ lignes: Ligne
     lignes.push({
       ligneExcel: rowNumber,
       date: dateStr,
-      numero,
+      numero: numeroEtSuffixe.numero,
+      numeroSuffixe: numeroEtSuffixe.suffixe,
       concerneTgca,
       destinataire,
       objet,

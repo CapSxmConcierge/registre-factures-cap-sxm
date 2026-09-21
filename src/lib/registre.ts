@@ -15,6 +15,8 @@ export interface Facture {
   id: string;
   annee: number;
   numero: number;
+  /** Suffixe optionnel (ex. "b" pour "34b") — voir migration 0053, import Excel uniquement. */
+  numero_suffixe: string;
   date_document: string;
   vente_materiel: boolean;
   concerne_tgca: boolean;
@@ -33,6 +35,7 @@ export interface Avoir {
   id: string;
   annee: number;
   numero: number;
+  numero_suffixe: string;
   date_document: string;
   concerne_tgca: boolean;
   destinataire: string;
@@ -47,10 +50,10 @@ export interface Avoir {
 
 export async function getFactures(annee: number): Promise<Facture[]> {
   const { rows } = await pool.query<Facture>(
-    `select id, annee, numero, to_char(date_document, 'YYYY-MM-DD') as date_document,
+    `select id, annee, numero, numero_suffixe, to_char(date_document, 'YYYY-MM-DD') as date_document,
             vente_materiel, concerne_tgca, destinataire, objet, montant_ttc, montant_ht, montant_tgca,
             origine, lien_fichier, to_char(created_at, 'YYYY-MM-DD"T"HH24:MI:SS') as created_at
-     from factures where annee = $1 order by numero desc`,
+     from factures where annee = $1 order by numero desc, numero_suffixe desc`,
     [annee]
   );
   return rows;
@@ -58,10 +61,10 @@ export async function getFactures(annee: number): Promise<Facture[]> {
 
 export async function getAvoirs(annee: number): Promise<Avoir[]> {
   const { rows } = await pool.query<Avoir>(
-    `select id, annee, numero, to_char(date_document, 'YYYY-MM-DD') as date_document,
+    `select id, annee, numero, numero_suffixe, to_char(date_document, 'YYYY-MM-DD') as date_document,
             concerne_tgca, destinataire, objet, montant_ttc, montant_ht, montant_tgca,
             origine, lien_fichier, to_char(created_at, 'YYYY-MM-DD"T"HH24:MI:SS') as created_at
-     from avoirs where annee = $1 order by numero desc`,
+     from avoirs where annee = $1 order by numero desc, numero_suffixe desc`,
     [annee]
   );
   return rows;
@@ -161,7 +164,7 @@ export async function modifierFacture(params: ModifierFactureParams): Promise<Fa
     `update factures set date_document = $2, destinataire = $3, objet = $4, montant_ttc = $5,
             montant_ht = $6, montant_tgca = $7, vente_materiel = $8, concerne_tgca = $9
      where id = $1
-     returning id, annee, numero, to_char(date_document, 'YYYY-MM-DD') as date_document,
+     returning id, annee, numero, numero_suffixe, to_char(date_document, 'YYYY-MM-DD') as date_document,
                vente_materiel, concerne_tgca, destinataire, objet, montant_ttc, montant_ht, montant_tgca,
                origine, lien_fichier, to_char(created_at, 'YYYY-MM-DD"T"HH24:MI:SS') as created_at`,
     [
@@ -196,7 +199,7 @@ export async function modifierAvoir(params: ModifierAvoirParams): Promise<Avoir>
     `update avoirs set date_document = $2, destinataire = $3, objet = $4, montant_ttc = $5,
             montant_ht = $6, montant_tgca = $7, concerne_tgca = $8
      where id = $1
-     returning id, annee, numero, to_char(date_document, 'YYYY-MM-DD') as date_document,
+     returning id, annee, numero, numero_suffixe, to_char(date_document, 'YYYY-MM-DD') as date_document,
                concerne_tgca, destinataire, objet, montant_ttc, montant_ht, montant_tgca,
                origine, lien_fichier, to_char(created_at, 'YYYY-MM-DD"T"HH24:MI:SS') as created_at`,
     [params.id, params.date, params.destinataire, params.objet, params.montantTtc, params.montantHt, montantTgca, params.concerneTgca]
@@ -220,23 +223,24 @@ export interface ImportResultat {
  * hors décompte.
  */
 export async function importerFacturesManuel(
-  lignes: { ligneExcel: number; date: string; numero: number; venteMateriel: boolean; concerneTgca: boolean; destinataire: string; objet: string; montantTtc: number }[]
+  lignes: { ligneExcel: number; date: string; numero: number; numeroSuffixe: string; venteMateriel: boolean; concerneTgca: boolean; destinataire: string; objet: string; montantTtc: number }[]
 ): Promise<ImportResultat> {
   const resultat: ImportResultat = { inserees: 0, ignorees: [], erreurs: [] };
   for (const l of lignes) {
     const annee = Number(l.date.slice(0, 4));
     const montantHt = Math.round((l.montantTtc / 1.04) * 100) / 100;
     const montantTgca = Math.round(montantHt * 0.04 * 100) / 100;
+    const numeroAffiche = `${l.numero}${l.numeroSuffixe}`;
     try {
       const { rows } = await pool.query(
-        `insert into factures (annee, numero, date_document, vente_materiel, concerne_tgca, destinataire, objet, montant_ttc, montant_ht, montant_tgca, origine)
-         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'manuel')
-         on conflict (annee, numero) do nothing
+        `insert into factures (annee, numero, numero_suffixe, date_document, vente_materiel, concerne_tgca, destinataire, objet, montant_ttc, montant_ht, montant_tgca, origine)
+         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'manuel')
+         on conflict (annee, numero, numero_suffixe) do nothing
          returning id`,
-        [annee, l.numero, l.date, l.venteMateriel, l.concerneTgca, l.destinataire, l.objet, l.montantTtc, montantHt, montantTgca]
+        [annee, l.numero, l.numeroSuffixe, l.date, l.venteMateriel, l.concerneTgca, l.destinataire, l.objet, l.montantTtc, montantHt, montantTgca]
       );
       if (rows.length > 0) resultat.inserees++;
-      else resultat.ignorees.push({ ligneExcel: l.ligneExcel, numero: l.numero, raison: `Facture n°${l.numero}/${annee} existe déjà.` });
+      else resultat.ignorees.push({ ligneExcel: l.ligneExcel, numero: l.numero, raison: `Facture n°${numeroAffiche}/${annee} existe déjà.` });
     } catch (err) {
       resultat.erreurs.push({ ligneExcel: l.ligneExcel, numero: l.numero, raison: err instanceof Error ? err.message : "Échec inattendu." });
     }
@@ -245,23 +249,24 @@ export async function importerFacturesManuel(
 }
 
 export async function importerAvoirsManuel(
-  lignes: { ligneExcel: number; date: string; numero: number; concerneTgca: boolean; destinataire: string; objet: string; montantTtc: number }[]
+  lignes: { ligneExcel: number; date: string; numero: number; numeroSuffixe: string; concerneTgca: boolean; destinataire: string; objet: string; montantTtc: number }[]
 ): Promise<ImportResultat> {
   const resultat: ImportResultat = { inserees: 0, ignorees: [], erreurs: [] };
   for (const l of lignes) {
     const annee = Number(l.date.slice(0, 4));
     const montantHt = Math.round((l.montantTtc / 1.04) * 100) / 100;
     const montantTgca = Math.round(montantHt * 0.04 * 100) / 100;
+    const numeroAffiche = `${l.numero}${l.numeroSuffixe}`;
     try {
       const { rows } = await pool.query(
-        `insert into avoirs (annee, numero, date_document, concerne_tgca, destinataire, objet, montant_ttc, montant_ht, montant_tgca, origine)
-         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'manuel')
-         on conflict (annee, numero) do nothing
+        `insert into avoirs (annee, numero, numero_suffixe, date_document, concerne_tgca, destinataire, objet, montant_ttc, montant_ht, montant_tgca, origine)
+         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'manuel')
+         on conflict (annee, numero, numero_suffixe) do nothing
          returning id`,
-        [annee, l.numero, l.date, l.concerneTgca, l.destinataire, l.objet, l.montantTtc, montantHt, montantTgca]
+        [annee, l.numero, l.numeroSuffixe, l.date, l.concerneTgca, l.destinataire, l.objet, l.montantTtc, montantHt, montantTgca]
       );
       if (rows.length > 0) resultat.inserees++;
-      else resultat.ignorees.push({ ligneExcel: l.ligneExcel, numero: l.numero, raison: `Avoir n°${l.numero}/${annee} existe déjà.` });
+      else resultat.ignorees.push({ ligneExcel: l.ligneExcel, numero: l.numero, raison: `Avoir n°${numeroAffiche}/${annee} existe déjà.` });
     } catch (err) {
       resultat.erreurs.push({ ligneExcel: l.ligneExcel, numero: l.numero, raison: err instanceof Error ? err.message : "Échec inattendu." });
     }
@@ -353,6 +358,7 @@ export async function getRecapTgcaTrimestre(annee: number, trimestre: 1 | 2 | 3 
 export interface LigneDetailTrimestre {
   type: "facture" | "avoir";
   numero: number;
+  numeroSuffixe: string;
   date: string;
   destinataire: string;
   objet: string;
@@ -371,7 +377,7 @@ export async function getDetailTrimestre(annee: number, trimestre: 1 | 2 | 3 | 4
   const plancherAvoir = plancherNumeroTrimestre(annee, trimestre, "avoir");
   const [factures, avoirs] = await Promise.all([
     pool.query<Facture>(
-      `select id, annee, numero, to_char(date_document, 'YYYY-MM-DD') as date_document,
+      `select id, annee, numero, numero_suffixe, to_char(date_document, 'YYYY-MM-DD') as date_document,
               vente_materiel, concerne_tgca, destinataire, objet, montant_ttc, montant_ht, montant_tgca, origine
        from factures
        where date_document >= $1 and date_document < $2 and ($3::int is null or numero >= $3)
@@ -379,7 +385,7 @@ export async function getDetailTrimestre(annee: number, trimestre: 1 | 2 | 3 | 4
       [debut, fin, plancherFacture]
     ),
     pool.query<Avoir>(
-      `select id, annee, numero, to_char(date_document, 'YYYY-MM-DD') as date_document,
+      `select id, annee, numero, numero_suffixe, to_char(date_document, 'YYYY-MM-DD') as date_document,
               concerne_tgca, destinataire, objet, montant_ttc, montant_ht, montant_tgca, origine
        from avoirs
        where date_document >= $1 and date_document < $2 and ($3::int is null or numero >= $3)
@@ -392,6 +398,7 @@ export async function getDetailTrimestre(annee: number, trimestre: 1 | 2 | 3 | 4
     ...factures.rows.map((f) => ({
       type: "facture" as const,
       numero: f.numero,
+      numeroSuffixe: f.numero_suffixe,
       date: f.date_document,
       destinataire: f.destinataire,
       objet: f.objet,
@@ -404,6 +411,7 @@ export async function getDetailTrimestre(annee: number, trimestre: 1 | 2 | 3 | 4
     ...avoirs.rows.map((a) => ({
       type: "avoir" as const,
       numero: a.numero,
+      numeroSuffixe: a.numero_suffixe,
       date: a.date_document,
       destinataire: a.destinataire,
       objet: a.objet,

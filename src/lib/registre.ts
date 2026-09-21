@@ -269,6 +269,23 @@ export async function importerAvoirsManuel(
   return resultat;
 }
 
+/**
+ * Plancher de numéro pour un trimestre donné — demande explicite, 21/09/2026 :
+ * l'import en masse des factures/avoirs depuis le 1er janvier 2026 (voir
+ * ImporterFactures.tsx/ImporterAvoirs.tsx) va faire entrer dans la base des
+ * lignes datées de juillet-août-septembre mais déjà comptées dans une
+ * déclaration ANTÉRIEURE (numérotées avant le début réel du T3 tel que déjà
+ * déclaré) — le simple filtre par date_document ne suffit plus pour ce
+ * trimestre-là. Uniquement le T3 2026 est concerné pour l'instant ; les
+ * autres trimestres/années restent filtrés par date seule.
+ */
+function plancherNumeroTrimestre(annee: number, trimestre: 1 | 2 | 3 | 4, type: "facture" | "avoir"): number | null {
+  if (annee === 2026 && trimestre === 3) {
+    return type === "facture" ? 171 : 170;
+  }
+  return null;
+}
+
 /** Bornes de dates ('YYYY-MM-DD') d'un trimestre calendaire — T1=janv-mars, T2=avr-juin, T3=juil-sept, T4=oct-déc. */
 export function bornesTrimestre(annee: number, trimestre: 1 | 2 | 3 | 4): { debut: string; fin: string } {
   const moisDebut = (trimestre - 1) * 3 + 1;
@@ -292,19 +309,23 @@ export interface RecapTgcaTrimestre {
 
 export async function getRecapTgcaTrimestre(annee: number, trimestre: 1 | 2 | 3 | 4): Promise<RecapTgcaTrimestre> {
   const { debut, fin } = bornesTrimestre(annee, trimestre);
+  const plancherFacture = plancherNumeroTrimestre(annee, trimestre, "facture");
+  const plancherAvoir = plancherNumeroTrimestre(annee, trimestre, "avoir");
 
   const { rows: fRows } = await pool.query<{ vente_materiel: boolean; total_ht: string; total_tgca: string }>(
     `select vente_materiel, coalesce(sum(montant_ht), 0) as total_ht, coalesce(sum(montant_tgca), 0) as total_tgca
      from factures
      where concerne_tgca and date_document >= $1 and date_document < $2
+       and ($3::int is null or numero >= $3)
      group by vente_materiel`,
-    [debut, fin]
+    [debut, fin, plancherFacture]
   );
   const { rows: aRows } = await pool.query<{ total_ht: string; total_tgca: string }>(
     `select coalesce(sum(montant_ht), 0) as total_ht, coalesce(sum(montant_tgca), 0) as total_tgca
      from avoirs
-     where concerne_tgca and date_document >= $1 and date_document < $2`,
-    [debut, fin]
+     where concerne_tgca and date_document >= $1 and date_document < $2
+       and ($3::int is null or numero >= $3)`,
+    [debut, fin, plancherAvoir]
   );
 
   const htHorsVenteFactures = Number(fRows.find((r) => !r.vente_materiel)?.total_ht ?? 0);
@@ -344,18 +365,26 @@ export interface LigneDetailTrimestre {
 
 export async function getDetailTrimestre(annee: number, trimestre: 1 | 2 | 3 | 4): Promise<LigneDetailTrimestre[]> {
   const { debut, fin } = bornesTrimestre(annee, trimestre);
+  // Même plancher de numéro que getRecapTgcaTrimestre — l'export CSV doit
+  // toujours correspondre exactement aux lignes comptées dans le récapitulatif.
+  const plancherFacture = plancherNumeroTrimestre(annee, trimestre, "facture");
+  const plancherAvoir = plancherNumeroTrimestre(annee, trimestre, "avoir");
   const [factures, avoirs] = await Promise.all([
     pool.query<Facture>(
       `select id, annee, numero, to_char(date_document, 'YYYY-MM-DD') as date_document,
               vente_materiel, concerne_tgca, destinataire, objet, montant_ttc, montant_ht, montant_tgca, origine
-       from factures where date_document >= $1 and date_document < $2 order by numero`,
-      [debut, fin]
+       from factures
+       where date_document >= $1 and date_document < $2 and ($3::int is null or numero >= $3)
+       order by numero`,
+      [debut, fin, plancherFacture]
     ),
     pool.query<Avoir>(
       `select id, annee, numero, to_char(date_document, 'YYYY-MM-DD') as date_document,
               concerne_tgca, destinataire, objet, montant_ttc, montant_ht, montant_tgca, origine
-       from avoirs where date_document >= $1 and date_document < $2 order by numero`,
-      [debut, fin]
+       from avoirs
+       where date_document >= $1 and date_document < $2 and ($3::int is null or numero >= $3)
+       order by numero`,
+      [debut, fin, plancherAvoir]
     ),
   ]);
 

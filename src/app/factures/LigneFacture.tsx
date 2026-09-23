@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { modifierFactureAction } from "../actions";
+import PieceJointeEditable from "../PieceJointeEditable";
 import type { Facture } from "@/lib/registre";
 
 const EUR = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" });
@@ -158,7 +159,7 @@ export default function LigneFacture({ facture }: { facture: Facture }) {
       </td>
       <td className="px-3 py-2 text-xs text-slate-400">{origineLabel[facture.origine] ?? facture.origine}</td>
       <td className="px-3 py-2 text-sm">
-        <CelluleFichier lien={facture.lien_fichier} />
+        <PieceJointeEditable id={facture.id} type="facture" lienFichier={facture.lien_fichier} />
       </td>
       <td className="px-3 py-2 whitespace-nowrap text-right">
         {erreur && <p className="mb-1 text-xs text-red-600">{erreur}</p>}

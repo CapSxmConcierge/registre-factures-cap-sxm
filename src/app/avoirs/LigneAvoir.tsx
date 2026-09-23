@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { modifierAvoirAction } from "../actions";
+import PieceJointeEditable from "../PieceJointeEditable";
 import type { Avoir } from "@/lib/registre";
 
 const EUR = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" });
@@ -151,7 +152,7 @@ export default function LigneAvoir({ avoir }: { avoir: Avoir }) {
       </td>
       <td className="px-3 py-2 text-xs text-slate-400">{origineLabel[avoir.origine] ?? avoir.origine}</td>
       <td className="px-3 py-2 text-sm">
-        <CelluleFichier lien={avoir.lien_fichier} />
+        <PieceJointeEditable id={avoir.id} type="avoir" lienFichier={avoir.lien_fichier} />
       </td>
       <td className="px-3 py-2 whitespace-nowrap text-right">
         {erreur && <p className="mb-1 text-xs text-red-600">{erreur}</p>}

@@ -146,6 +146,55 @@ export async function enregistrerPieceJointe(nomFichier: string, typeMime: strin
   return `/api/piece-jointe/${rows[0].id}`;
 }
 
+/**
+ * Supprime le blob `pieces_jointes_registre` correspondant, si `lienFichier`
+ * en pointe bien un (`/api/piece-jointe/{id}`) — jamais touché s'il s'agit
+ * d'un simple chemin local (document généré par l'Appli Gestion, voir
+ * `CelluleFichier` côté UI) : cette table ne connaît que les pièces jointes
+ * réellement uploadées depuis ce site.
+ */
+async function supprimerPieceJointeSiStockee(lienFichier: string | null): Promise<void> {
+  const id = lienFichier?.match(/^\/api\/piece-jointe\/([0-9a-f-]+)$/)?.[1];
+  if (!id) return;
+  await pool.query(`delete from pieces_jointes_registre where id = $1`, [id]);
+}
+
+/** Remplace la pièce jointe d'une facture existante — l'ancienne (si uploadée depuis ce site) est supprimée pour ne pas laisser de blob orphelin. */
+export async function remplacerPieceJointeFacture(id: string, nomFichier: string, typeMime: string, donnees: Buffer): Promise<string> {
+  const { rows } = await pool.query<{ lien_fichier: string | null }>(`select lien_fichier from factures where id = $1`, [id]);
+  const ancien = rows[0]?.lien_fichier ?? null;
+  const lien = await enregistrerPieceJointe(nomFichier, typeMime, donnees);
+  await pool.query(`update factures set lien_fichier = $1 where id = $2`, [lien, id]);
+  await supprimerPieceJointeSiStockee(ancien);
+  return lien;
+}
+
+/** Retire la pièce jointe d'une facture existante (le champ redevient vide). */
+export async function supprimerPieceJointeFacture(id: string): Promise<void> {
+  const { rows } = await pool.query<{ lien_fichier: string | null }>(`select lien_fichier from factures where id = $1`, [id]);
+  const ancien = rows[0]?.lien_fichier ?? null;
+  await pool.query(`update factures set lien_fichier = null where id = $1`, [id]);
+  await supprimerPieceJointeSiStockee(ancien);
+}
+
+/** Remplace la pièce jointe d'un avoir existant — même règle que `remplacerPieceJointeFacture`. */
+export async function remplacerPieceJointeAvoir(id: string, nomFichier: string, typeMime: string, donnees: Buffer): Promise<string> {
+  const { rows } = await pool.query<{ lien_fichier: string | null }>(`select lien_fichier from avoirs where id = $1`, [id]);
+  const ancien = rows[0]?.lien_fichier ?? null;
+  const lien = await enregistrerPieceJointe(nomFichier, typeMime, donnees);
+  await pool.query(`update avoirs set lien_fichier = $1 where id = $2`, [lien, id]);
+  await supprimerPieceJointeSiStockee(ancien);
+  return lien;
+}
+
+/** Retire la pièce jointe d'un avoir existant (le champ redevient vide). */
+export async function supprimerPieceJointeAvoir(id: string): Promise<void> {
+  const { rows } = await pool.query<{ lien_fichier: string | null }>(`select lien_fichier from avoirs where id = $1`, [id]);
+  const ancien = rows[0]?.lien_fichier ?? null;
+  await pool.query(`update avoirs set lien_fichier = null where id = $1`, [id]);
+  await supprimerPieceJointeSiStockee(ancien);
+}
+
 export interface ModifierFactureParams {
   id: string;
   date: string;

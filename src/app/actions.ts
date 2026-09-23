@@ -10,6 +10,10 @@ import {
   importerFacturesManuel,
   importerAvoirsManuel,
   enregistrerPieceJointe,
+  remplacerPieceJointeFacture,
+  supprimerPieceJointeFacture,
+  remplacerPieceJointeAvoir,
+  supprimerPieceJointeAvoir,
   type ModifierFactureParams,
   type ModifierAvoirParams,
   type ImportResultat,
@@ -143,6 +147,68 @@ export async function modifierAvoirAction(
     return { ok: true };
   } catch (err) {
     console.error("Modification d'avoir échouée :", err);
+    return { ok: false, erreur: err instanceof Error ? err.message : "Échec inattendu." };
+  }
+}
+
+export async function remplacerPieceJointeFactureAction(
+  formData: FormData
+): Promise<{ ok: true; lienFichier: string } | { ok: false; erreur: string }> {
+  const id = String(formData.get("id"));
+  const fichier = formData.get("fichier");
+  if (!(fichier instanceof File) || fichier.size === 0) return { ok: false, erreur: "Aucun fichier reçu." };
+  try {
+    const buffer = Buffer.from(await fichier.arrayBuffer());
+    const lienFichier = await remplacerPieceJointeFacture(id, fichier.name, fichier.type || "application/octet-stream", buffer);
+    revalidatePath("/factures");
+    return { ok: true, lienFichier };
+  } catch (err) {
+    console.error("Remplacement de la pièce jointe (facture) échoué :", err);
+    return { ok: false, erreur: err instanceof Error ? err.message : "Échec inattendu." };
+  }
+}
+
+export async function supprimerPieceJointeFactureAction(
+  formData: FormData
+): Promise<{ ok: true } | { ok: false; erreur: string }> {
+  const id = String(formData.get("id"));
+  try {
+    await supprimerPieceJointeFacture(id);
+    revalidatePath("/factures");
+    return { ok: true };
+  } catch (err) {
+    console.error("Suppression de la pièce jointe (facture) échouée :", err);
+    return { ok: false, erreur: err instanceof Error ? err.message : "Échec inattendu." };
+  }
+}
+
+export async function remplacerPieceJointeAvoirAction(
+  formData: FormData
+): Promise<{ ok: true; lienFichier: string } | { ok: false; erreur: string }> {
+  const id = String(formData.get("id"));
+  const fichier = formData.get("fichier");
+  if (!(fichier instanceof File) || fichier.size === 0) return { ok: false, erreur: "Aucun fichier reçu." };
+  try {
+    const buffer = Buffer.from(await fichier.arrayBuffer());
+    const lienFichier = await remplacerPieceJointeAvoir(id, fichier.name, fichier.type || "application/octet-stream", buffer);
+    revalidatePath("/avoirs");
+    return { ok: true, lienFichier };
+  } catch (err) {
+    console.error("Remplacement de la pièce jointe (avoir) échoué :", err);
+    return { ok: false, erreur: err instanceof Error ? err.message : "Échec inattendu." };
+  }
+}
+
+export async function supprimerPieceJointeAvoirAction(
+  formData: FormData
+): Promise<{ ok: true } | { ok: false; erreur: string }> {
+  const id = String(formData.get("id"));
+  try {
+    await supprimerPieceJointeAvoir(id);
+    revalidatePath("/avoirs");
+    return { ok: true };
+  } catch (err) {
+    console.error("Suppression de la pièce jointe (avoir) échouée :", err);
     return { ok: false, erreur: err instanceof Error ? err.message : "Échec inattendu." };
   }
 }

@@ -16,13 +16,13 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <body>
         {connecte && (
           <header className="border-b border-slate-200 bg-slate-50">
-            <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-3">
+            <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-3">
               <NavLinks />
               <DeconnexionBouton />
             </div>
           </header>
         )}
-        <main className="mx-auto max-w-5xl px-6 py-8">{children}</main>
+        <main className="mx-auto max-w-7xl px-6 py-8">{children}</main>
       </body>
     </html>
   );
